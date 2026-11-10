@@ -1,0 +1,20 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Install binary
+        run: install -m 755 target/release/adam1 /opt/adam1/adam1
+
+      - name: Restart service
+        run: sudo systemctl restart adam1
