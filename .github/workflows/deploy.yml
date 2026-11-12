@@ -3,18 +3,84 @@ name: Deploy
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
-  deploy:
-    runs-on: self-hosted
+  build:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
+
+      - name: Install cross linker
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu
+
       - name: Build
-        run: cargo build --release
+        run: cargo build --release --target aarch64-unknown-linux-gnu
+        env:
+          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
 
-      - name: Install binary
-        run: install -m 755 target/release/adam1 /opt/adam1/adam1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary
+          path: target/aarch64-unknown-linux-gnu/release/adam1
 
-      - name: Restart service
-        run: sudo systemctl restart adam1
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: binary
+
+      - name: Connect to VPN
+        run: |
+          sudo apt-get install -y wireguard-tools
+          sudo mkdir -p /etc/wireguard
+          sudo tee /etc/wireguard/wg-ci.conf >/dev/null <<EOF
+          [Interface]
+          PrivateKey = ${{ secrets.WG_PRIVATE_KEY }}
+          Address = 10.7.0.3/32
+
+          [Peer]
+          PublicKey = ${{ secrets.WG_PI_PUBLIC_KEY }}
+          Endpoint = ${{ vars.WG_ENDPOINT }}
+          AllowedIPs = 10.7.0.1/24 
+          PersistentKeepalive = 25
+          EOF
+          sudo chmod 600 /etc/wireguard/wg-ci.conf
+          sudo wg-quick up wg-ci
+
+      - name: Verify tunnel
+        run: |
+          for i in $(seq 1 15); do
+            ping -c1 -W1 10.7.0.1/24 >/dev/null 2>&1 || true
+            if sudo wg show wg-ci latest-handshakes | awk '{print $2}' | grep -qv '^0$'; then
+              echo "handshake ok"; exit 0
+            fi
+            sleep 1
+          done
+          sudo wg show
+          echo "no handshake"; exit 1
+
+      - name: Set up SSH
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null && echo "private key OK"
+          ssh-keyscan -t ed25519 10.7.0.1 > ~/.ssh/known_hosts
+
+      - name: Copy and restart
+        run: |
+          scp adam1 deploy@10.7.0.1:/tmp/adam1
+          ssh deploy@10.7.0.1 "sudo /usr/bin/install -m 755 /tmp/adam1 /opt/adam1/adam1 && sudo /usr/bin/systemctl restart adam1"
+
+      - name: Disconnect VPN
+        if: always()
+        run: sudo wg-quick down ./wg-ci.conf || true
