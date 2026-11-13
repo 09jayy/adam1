@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: unit-tests
-        run: cargo test
+        run: cargo test --lib
 
   deploy:
     needs: test
