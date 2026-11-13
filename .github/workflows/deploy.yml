@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: ['**']
   workflow_dispatch:
 
 jobs:
@@ -32,6 +32,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment: production 
+    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/download-artifact@v4
         with:
