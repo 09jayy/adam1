@@ -15,3 +15,15 @@ async fn main() {
 async fn hello() -> &'static str {
     "大家好!"
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_hello() {
+        let v = hello().await;
+
+        assert_eq!(v, "大家好!")
+    }
+}
