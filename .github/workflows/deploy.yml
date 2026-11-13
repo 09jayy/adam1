@@ -37,7 +37,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
 
-      - name: unit-tests
+      - name: run tests
         run: cargo test
 
   deploy:
