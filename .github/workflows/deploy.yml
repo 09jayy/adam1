@@ -28,8 +28,15 @@ jobs:
           name: binary
           path: target/aarch64-unknown-linux-gnu/release/adam1
 
-  deploy:
+  test:
     needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: unit-tests
+        run: cargo test
+
+  deploy:
+    needs: test
     runs-on: ubuntu-latest
     environment: production 
     if: github.ref == 'refs/heads/main'
