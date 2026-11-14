@@ -8,6 +8,7 @@ API_KEY = os.environ.get("CODE_REVIEW_KEY")
 MODEL = os.environ.get("CODE_REVIEW_MODEL")
 
 # Setup constants
+ENABLE_REASONING = True
 SYSTEM_PROMPT = """
 You are a senior software engineer reviewing code. Your priorities are readability, maintainability and following 
 industry standard best practices where possible. The code is written is deployed to a small home-lab server, keep
@@ -25,9 +26,17 @@ def get_pull_request_diffs():
         return result.stdout
     except subprocess.CalledProcessError as e:
         print(f"Error running git diff: {e}")
-        return
+        return None
 
 def main():
+    if not API_KEY or not MODEL:
+        raise SystemExit("CODE_REVIEW_KEY and CODE_REVIEW_MODEL must be set in environment variables")
+
+    diffs = get_pull_request_diffs()
+
+    if diffs is None:
+        raise SystemExit("Failed to generate pull request diffs")
+
     response = requests.post(
         url="https://openrouter.ai/api/v1/chat/completions",
         headers={
@@ -35,7 +44,7 @@ def main():
             "Content-Type": "application/json",
         },
         data=json.dumps({
-            "model": model,
+            "model": MODEL,
             "messages": [
                 {
                     "role": "system",
@@ -43,18 +52,29 @@ def main():
                 },
                 {
                     "role": "user",
-                    "content": f"{USER_PROMPT}\n{get_pull_request_diffs()}"
+                    "content": f"{USER_PROMPT}\n{diffs}"
                 }
             ],
-            "reasoning": {"enabled": True}
-        })
+            "reasoning": {"enabled": ENABLE_REASONING}
+        }),
+        timeout=60
     )
+    
+    try:
+        response = response.json()
+    except requests.exceptions.JSONDecodeError:
+        response.raise_for_status()
+        raise
 
-    response = response.json()
+    if response.status_code >= 400:
+        print(f"Status Code: {response.status_code}\nAPI Error: {response}")
+        response.raise_for_status()
+        raise
+
     response = response['choices'][0]['message']
     
     # TODO: post response as a comment under Pull Request rather than log
-    print(response)
+    print(json.dumps(response, indent=2))
 
 if __name__ == "__main__":
     main()
