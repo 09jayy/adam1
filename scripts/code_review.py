@@ -29,6 +29,9 @@ def get_pull_request_diffs():
         return None
 
 def main():
+    if not API_KEY or not MODEL:
+        raise SystemExit("CODE_REVIEW_KEY and CODE_REVIEW_MODEL must be set in environment variables")
+
     diffs = get_pull_request_diffs()
 
     if diffs is None:
