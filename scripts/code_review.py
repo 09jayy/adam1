@@ -8,6 +8,7 @@ API_KEY = os.environ.get("CODE_REVIEW_KEY")
 MODEL = os.environ.get("CODE_REVIEW_MODEL")
 
 # Setup constants
+ENABLE_REASONING = True
 SYSTEM_PROMPT = """
 You are a senior software engineer reviewing code. Your priorities are readability, maintainability and following 
 industry standard best practices where possible. The code is written is deployed to a small home-lab server, keep
@@ -46,11 +47,16 @@ def main():
                     "content": f"{USER_PROMPT}\n{get_pull_request_diffs()}"
                 }
             ],
-            "reasoning": {"enabled": True}
+            "reasoning": {"enabled": ENABLE_REASONING}
         })
     )
 
     response = response.json()
+    
+    if "error" in response:
+        print(f"API Error: {response['error']['message']}")
+        return
+
     response = response['choices'][0]['message']
     
     # TODO: post response as a comment under Pull Request rather than log
