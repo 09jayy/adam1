@@ -57,12 +57,12 @@ jobs:
           sudo tee /etc/wireguard/wg-ci.conf >/dev/null <<EOF
           [Interface]
           PrivateKey = ${{ secrets.WG_PRIVATE_KEY }}
-          Address = 10.7.0.3/32
+          Address = ${{ vars.WG_CLIENT_IP }}/32
 
           [Peer]
           PublicKey = ${{ secrets.WG_PI_PUBLIC_KEY }}
           Endpoint = ${{ vars.WG_ENDPOINT }}
-          AllowedIPs = 10.7.0.1/24 
+          AllowedIPs = ${{ vars.DEPLOY_HOST }}/24 
           PersistentKeepalive = 25
           EOF
           sudo chmod 600 /etc/wireguard/wg-ci.conf
@@ -71,7 +71,7 @@ jobs:
       - name: Verify tunnel
         run: |
           for i in $(seq 1 15); do
-            ping -c1 -W1 10.7.0.1/24 >/dev/null 2>&1 || true
+            ping -c1 -W1 ${{ vars.DEPLOY_HOST }} >/dev/null 2>&1 || true
             if sudo wg show wg-ci latest-handshakes | awk '{print $2}' | grep -qv '^0$'; then
               echo "handshake ok"; exit 0
             fi
@@ -88,12 +88,17 @@ jobs:
           printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null && echo "private key OK"
-          ssh-keyscan -t ed25519 10.7.0.1 > ~/.ssh/known_hosts
+          ssh-keyscan -t ed25519 ${{ vars.DEPLOY_HOST }} > ~/.ssh/known_hosts
 
       - name: Copy and restart
         run: |
-          scp ${{ vars.APPLE_NAME }} deploy@10.7.0.1:/tmp/${{ vars.APP_NAME }}
-          ssh deploy@10.7.0.1 "sudo /usr/bin/install -m 755 /tmp/${{ vars.APP_NAME}} /opt/${{ vars.APP_NAME }}/${{ vars.APP_NAME }} && sudo /usr/bin/systemctl restart ${{ vars.APP_NAME}}"
+          BINARY_PATH="target/aarch64-unknown-linux-gnu/release/${{ vars.APP_NAME }}"
+          
+          scp "$BINARY_PATH" ${{ vars.DEPLOY_USER:-deploy }}@${{ vars.DEPLOY_HOST }}:/tmp/${{ vars.APP_NAME }}
+          
+          ssh ${{ vars.DEPLOY_USER:-deploy }}@${{ vars.DEPLOY_HOST }} "\
+            sudo /usr/bin/install -m 755 /tmp/${{ vars.APP_NAME }} /opt/${{ vars.APP_NAME }}/${{ vars.APP_NAME }} && \
+            sudo /usr/bin/systemctl restart ${{ vars.APP_NAME }}"
 
       - name: Disconnect VPN
         if: always()
