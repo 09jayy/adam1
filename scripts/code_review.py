@@ -26,9 +26,14 @@ def get_pull_request_diffs():
         return result.stdout
     except subprocess.CalledProcessError as e:
         print(f"Error running git diff: {e}")
-        return
+        return None
 
 def main():
+    diffs = get_pull_request_diffs()
+
+    if diffs is None:
+        return
+
     response = requests.post(
         url="https://openrouter.ai/api/v1/chat/completions",
         headers={
@@ -44,7 +49,7 @@ def main():
                 },
                 {
                     "role": "user",
-                    "content": f"{USER_PROMPT}\n{get_pull_request_diffs()}"
+                    "content": f"{USER_PROMPT}\n{diffs}"
                 }
             ],
             "reasoning": {"enabled": ENABLE_REASONING}
