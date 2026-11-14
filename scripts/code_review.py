@@ -39,7 +39,7 @@ def main():
                 {
                     "role": "system",
                     "content": ""
-                }
+                },
                 {
                     "role": "user",
                     "content": f"{USER_PROMPT}\n{get_pull_request_diffs()}"
