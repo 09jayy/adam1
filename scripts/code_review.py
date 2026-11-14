@@ -28,15 +28,7 @@ def get_pull_request_diffs():
         print(f"Error running git diff: {e}")
         return None
 
-def main():
-    if not API_KEY or not MODEL:
-        raise SystemExit("CODE_REVIEW_KEY and CODE_REVIEW_MODEL must be set in environment variables")
-
-    diffs = get_pull_request_diffs()
-
-    if diffs is None:
-        raise SystemExit("Failed to generate pull request diffs")
-
+def get_ai_review():
     response = requests.post(
         url="https://openrouter.ai/api/v1/chat/completions",
         headers={
@@ -71,8 +63,21 @@ def main():
         response.raise_for_status()
         raise
 
-    response = response['choices'][0]['message']
+    return response['choices'][0]['message']
     
+
+
+def main():
+    if not API_KEY or not MODEL:
+        raise SystemExit("CODE_REVIEW_KEY and CODE_REVIEW_MODEL must be set in environment variables")
+
+    diffs = get_pull_request_diffs()
+
+    if diffs is None:
+        raise SystemExit("Failed to generate pull request diffs")
+
+    response = get_ai_review()
+
     # TODO: post response as a comment under Pull Request rather than log
     print(json.dumps(response, indent=2))
 
