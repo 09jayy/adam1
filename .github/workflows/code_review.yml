@@ -1,0 +1,26 @@
+name: AI Code Review
+
+on:
+  workflow_dispatch:
+
+jobs:
+  code-review:
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.15.2'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: AI code review
+        env:
+          API_KEY: ${{ secrets.CODE_REVIEW_KEY }}
+          CODE_REVIEW_MODEL: ${{ vars.CODE_REVIEW_MODEL }}
+        run: python scripts/code_review.py
+
