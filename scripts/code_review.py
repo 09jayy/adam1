@@ -32,7 +32,7 @@ def main():
     diffs = get_pull_request_diffs()
 
     if diffs is None:
-        return
+        raise SystemExit("Failed to generate pull request diffs")
 
     response = requests.post(
         url="https://openrouter.ai/api/v1/chat/completions",
@@ -59,8 +59,7 @@ def main():
     response = response.json()
     
     if "error" in response:
-        print(f"API Error: {response['error']['message']}")
-        return
+        raise SystemExit(f"API Error: {response['error']['message']}")
 
     response = response['choices'][0]['message']
     
