@@ -6,6 +6,26 @@ on:
   workflow_dispatch:
 
 jobs:
+  code-review:
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/main' && github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/github-script@v9
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.15.2'
+
+      - name: AI code review
+        env:
+          API_KEY: ${{ secrets.CODE_REVIEW_KEY }}
+          CODE_REVIEW_MODEL: ${{ vars.CODE_REVIEW_MODEL }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/code_review.py
+      
   build:
     runs-on: ubuntu-latest
     steps:
