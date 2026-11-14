@@ -51,27 +51,33 @@ jobs:
           name: binary
 
       - name: Connect to VPN
+        env:
+          WG_CLIENT_IP: ${{ vars.WG_CLIENT_IP }}
+          WG_ENDPOINT: ${{ vars.WG_ENDPOINT }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
         run: |
           sudo apt-get install -y wireguard-tools
           sudo mkdir -p /etc/wireguard
           sudo tee /etc/wireguard/wg-ci.conf >/dev/null <<EOF
           [Interface]
           PrivateKey = ${{ secrets.WG_PRIVATE_KEY }}
-          Address = ${{ vars.WG_CLIENT_IP }}/32
+          Address = ${WG_CLIENT_IP}/32
 
           [Peer]
           PublicKey = ${{ secrets.WG_PI_PUBLIC_KEY }}
-          Endpoint = ${{ vars.WG_ENDPOINT }}
-          AllowedIPs = ${{ vars.DEPLOY_HOST }}/24 
+          Endpoint = ${WG_ENDPOINT}
+          AllowedIPs = ${DEPLOY_HOST}/24
           PersistentKeepalive = 25
           EOF
           sudo chmod 600 /etc/wireguard/wg-ci.conf
           sudo wg-quick up wg-ci
 
       - name: Verify tunnel
+        env:
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
         run: |
           for i in $(seq 1 15); do
-            ping -c1 -W1 ${{ vars.DEPLOY_HOST }} >/dev/null 2>&1 || true
+            ping -c1 -W1 "$DEPLOY_HOST" >/dev/null 2>&1 || true
             if sudo wg show wg-ci latest-handshakes | awk '{print $2}' | grep -qv '^0$'; then
               echo "handshake ok"; exit 0
             fi
@@ -83,12 +89,13 @@ jobs:
       - name: Set up SSH
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
         run: |
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
           ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null && echo "private key OK"
-          ssh-keyscan -t ed25519 ${{ vars.DEPLOY_HOST }} > ~/.ssh/known_hosts
+          ssh-keyscan -t ed25519 "$DEPLOY_HOST" > ~/.ssh/known_hosts
 
       - name: Copy and restart
         env:
