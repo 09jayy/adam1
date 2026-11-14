@@ -91,14 +91,15 @@ jobs:
           ssh-keyscan -t ed25519 ${{ vars.DEPLOY_HOST }} > ~/.ssh/known_hosts
 
       - name: Copy and restart
+        env:
+          DEPLOY_USER: ${{ vars.DEPLOY_USER }}
+          DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+          APP_NAME: ${{ vars.APP_NAME }}
         run: |
-          BINARY_PATH="target/aarch64-unknown-linux-gnu/release/${{ vars.APP_NAME }}"
+          scp target/aarch64-unknown-linux-gnu/release/$APP_NAME "$DEPLOY_USER@$DEPLOY_HOST:/tmp/$APP_NAME"
           
-          scp "$BINARY_PATH" ${{ vars.DEPLOY_USER:-deploy }}@${{ vars.DEPLOY_HOST }}:/tmp/${{ vars.APP_NAME }}
-          
-          ssh ${{ vars.DEPLOY_USER:-deploy }}@${{ vars.DEPLOY_HOST }} "\
-            sudo /usr/bin/install -m 755 /tmp/${{ vars.APP_NAME }} /opt/${{ vars.APP_NAME }}/${{ vars.APP_NAME }} && \
-            sudo /usr/bin/systemctl restart ${{ vars.APP_NAME }}"
+          ssh "$DEPLOY_USER@$DEPLOY_HOST" \
+            "sudo /usr/bin/install -m 755 /tmp/$APP_NAME /opt/$APP_NAME/$APP_NAME && sudo /usr/bin/systemctl restart $APP_NAME"
 
       - name: Disconnect VPN
         if: always()
