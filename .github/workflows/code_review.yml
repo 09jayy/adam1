@@ -14,7 +14,7 @@ jobs:
 
       - name: Ensure origin/main is available
         run: |
-          git fetch origin main:main || true
+          git fetch origin main
 
       - name: Set up Python
         uses: actions/setup-python@v7
