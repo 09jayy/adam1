@@ -53,13 +53,20 @@ def main():
                 }
             ],
             "reasoning": {"enabled": ENABLE_REASONING}
-        })
+        }),
+        timeout=60
     )
-
-    response = response.json()
     
-    if "error" in response:
-        raise SystemExit(f"API Error: {response['error']['message']}")
+    try:
+        response = response.json()
+    except requests.exceptions.JSONDecodeError:
+        response.raise_for_status()
+        raise
+
+    if response.status_code >= 400:
+        print(f"Status Code: {response.status_code}\nAPI Error: {response}")
+        response.raise_for_status()
+        raise
 
     response = response['choices'][0]['message']
     
