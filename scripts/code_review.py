@@ -9,6 +9,7 @@ API_KEY = os.environ.get("CODE_REVIEW_KEY")
 MODEL = os.environ.get("CODE_REVIEW_MODEL")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 REPO = os.environ.get("GITHUB_REPOSITORY")
+PR_NUMBER = os.environ.get("PR_NUMBER")
 
 def load_pr_context():
     event_path = os.environ.get("GITHUB_EVENT_PATH")
@@ -137,18 +138,12 @@ def annotate_diff(diff):
             out.append(raw)
     return "\n".join(out)
 
-def get_pull_request_diffs():
-    try:
-        result = subprocess.run(
-            ["git","diff","origin/main...HEAD"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        return result.stdout
-    except subprocess.CalledProcessError as e:
-        print(f"Error running git diff: {e}")
-        return None
+def get_pull_request_diffs(base_ref):
+    result = subprocess.run(
+        ["git", "diff", f"origin/{base_ref}...HEAD"],
+        capture_output=True, text=True, check=True,
+    )
+    return result.stdout
 
 def get_ai_review(diffs, MODEL, API_KEY):
     diffs = annotate_diff(diffs)
@@ -190,6 +185,19 @@ def get_ai_review(diffs, MODEL, API_KEY):
         response.raise_for_status()
 
     return response['choices'][0]['message']
+    
+    def get_pr_context():
+        r = requests.get(
+            f"https://api.github.com/repos/{REPO}/pulls/{PR_NUMBER}",
+            headers={
+                "Authorization": f"Bearer {GITHUB_TOKEN}",
+                "Accept": "application/vnd.github+json",
+            },
+            timeout=30,
+        )
+        r.raise_for_status()
+        pr = r.json()
+        return pr["head"]["sha"], pr["base"]["ref"]
 
 def post_line_comment(c):
     payload = {
@@ -227,14 +235,14 @@ def main():
     if not API_KEY or not MODEL:
         raise SystemExit("CODE_REVIEW_KEY and CODE_REVIEW_MODEL must be set in environment variables")
 
-    diffs = get_pull_request_diffs()
+    commit_sha, base_ref = get_pr_context()
+    diffs = get_pull_request_diffs(base_ref)
 
     if diffs is None:
         raise SystemExit("Failed to generate pull request diffs")
 
     response = get_ai_review(diffs, MODEL, API_KEY)
 
-    # TODO: post response as a comment under Pull Request rather than log
     print(json.dumps(response, indent=2))
     post_all(response["content"]["comments"])
 
