@@ -1,6 +1,7 @@
-import requests
+import os
 import json
 import subprocess
+import requests
 
 # Setup Environment variables
 API_KEY = os.environ.get("CODE_REVIEW_KEY")

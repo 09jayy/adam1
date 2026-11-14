@@ -17,6 +17,9 @@ jobs:
         with:
           python-version: '3.15.2'
 
+      - name: Install dependencies
+        run: pip install requests
+
       - name: AI code review
         env:
           API_KEY: ${{ secrets.CODE_REVIEW_KEY }}
