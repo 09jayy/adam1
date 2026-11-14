@@ -7,6 +7,23 @@ import re
 # Setup Environment variables
 API_KEY = os.environ.get("CODE_REVIEW_KEY")
 MODEL = os.environ.get("CODE_REVIEW_MODEL")
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+REPO = os.environ.get("GITHUB_REPOSITORY")
+
+def load_pr_context():
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if not event_path:
+        raise SystemExit("GITHUB_EVENT_PATH not set, are you running inside GitHub Actions?")
+
+    with open(event_path) as f:
+        event = json.load(f)
+
+    pr = event.get("pull_request")
+    if not pr:
+        raise SystemExit("This workflow run was not triggered by a pull_request event")
+
+    return pr["number"], pr["head"]["sha"]
+PR_NUMBER, COMMIT_SHA = load_pr_context()
 
 # Setup constants
 ENABLE_REASONING = False
@@ -173,7 +190,38 @@ def get_ai_review(diffs, MODEL, API_KEY):
         response.raise_for_status()
 
     return response['choices'][0]['message']
- 
+
+def post_line_comment(c):
+    payload = {
+        "body": c["body"],
+        "commit_id": COMMIT_SHA,
+        "path": c["path"],
+        "line": c["line"],
+        "side": "RIGHT",
+    }
+    if c["start_line"] < c["line"]:
+        payload["start_line"] = c["start_line"]
+        payload["start_side"] = "RIGHT"
+
+    r = requests.post(
+        f"https://api.github.com/repos/{REPO}/pulls/{PR_NUMBER}/comments",
+        headers={
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json",
+        },
+        json=payload,
+        timeout=30,
+    )
+    if r.status_code >= 400:
+        print(f"Failed {c['path']}:{c['line']}: {r.status_code} {r.text}")
+        return None
+    return r.json()
+
+
+def post_all(comments):
+    for c in comments:
+        post_line_comment(c)
+        time.sleep(1)  # avoid GitHub's secondary rate limits
 
 def main():
     if not API_KEY or not MODEL:
@@ -188,6 +236,7 @@ def main():
 
     # TODO: post response as a comment under Pull Request rather than log
     print(json.dumps(response, indent=2))
+    post_all(response["content"]["comments"])
 
 if __name__ == "__main__":
     main()
