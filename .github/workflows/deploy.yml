@@ -26,7 +26,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: binary
-          path: target/aarch64-unknown-linux-gnu/release/adam1
+          path: target/aarch64-unknown-linux-gnu/release/${{ vars.APP_NAME }}
 
   test:
     needs: build
@@ -92,8 +92,8 @@ jobs:
 
       - name: Copy and restart
         run: |
-          scp adam1 deploy@10.7.0.1:/tmp/adam1
-          ssh deploy@10.7.0.1 "sudo /usr/bin/install -m 755 /tmp/adam1 /opt/adam1/adam1 && sudo /usr/bin/systemctl restart adam1"
+          scp ${{ vars.APPLE_NAME }} deploy@10.7.0.1:/tmp/${{ vars.APP_NAME }}
+          ssh deploy@10.7.0.1 "sudo /usr/bin/install -m 755 /tmp/${{ vars.APP_NAME}} /opt/${{ vars.APP_NAME }}/${{ vars.APP_NAME }} && sudo /usr/bin/systemctl restart ${{ vars.APP_NAME}}"
 
       - name: Disconnect VPN
         if: always()
