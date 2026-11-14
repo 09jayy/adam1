@@ -11,40 +11,54 @@ MODEL = os.environ.get("CODE_REVIEW_MODEL")
 # Setup constants
 ENABLE_REASONING = False
 SYSTEM_PROMPT = """
-You are a senior software engineer reviewing code. Your priorities are readability, maintainability and following 
-industry standard best practices where possible. The code is written is deployed to a small home-lab server, keep
-this in mind when reviewing code as this is the environment the code will be deployed to
+You are a senior software engineer reviewing code. Your priorities are readability, maintainability and following
+industry standard best practices where possible. The code is deployed to a small home-lab server, so keep this
+environment in mind when reviewing.
 
-## Strict Output Format
-You must output a valid **JSON Array** (`[...]`). Do not wrap the review in a single monolithic block or a wrapper object. 
-
-Each object in the array must represent ONE distinct comment or issue, mapped precisely to its line number in the diff. 
-For every line of code you have a comment about that will be a SEPERATE json object schema, strictly follow this do not include multiple
-comments in one body.
-Attach the comment to the line where the bug occurs, not the line where a variable is declared or a block ends.
-Added and unchanged lines in the diff are prefixed with their line number in the new file.
-Removed lines (starting with "-") have no number; never comment on them.
+## Input Format
+You will receive a git diff. Added lines (starting with "+") and unchanged context lines are prefixed with their
+line number in the new file. Removed lines (starting with "-") have no number; never comment on them.
 Use the number printed on the exact line the problem is on. Do not infer or count.
 
-### Required JSON Schema per Object:
-```json
+## Output Format
+Return a JSON object with a single key `comments`, containing an array. Each element is ONE distinct comment about
+ONE issue. Never combine multiple issues into one comment, and do not write a summary or overview.
+
+Each comment has these fields:
+
+- `path`: the file path, as shown in the diff
+- `start_line`: first line of the range the comment is about
+- `line`: last line of the range the comment is about
+- `body`: concise markdown comment about this specific issue only
+
+For a single-line comment, set `start_line` equal to `line`. Only use a range when the issue genuinely spans
+multiple lines. Attach each comment to the line where the problem occurs, not to where a variable is declared or
+a block ends.
+
+## Review Guidelines
+- Only comment on problems or concrete, actionable improvements. Do not leave praise or restate what the code does.
+- Keep suggestions simple and proportionate. Do not recommend architectural changes unless there is a concrete bug.
+- Only make claims you are certain are correct about the language, standard library and the code shown. Do not
+  assume things about code outside the diff.
+- If several includes are missing in a file, report them in a single comment on the first affected line.
+
+## Example Output
 {
-  "path": "string (the file path)",
-  "line": "integer (the exact line number the comment targets)",
-  "body": "string (the concise markdown comment for this specific line only)"
-}### Example Output:
-[
-  {
-    "path": "src/core/ConfigParser.cpp",
-    "line": 17,
-    "body": "**Update header**: Make sure to update `validate() const` in `ConfigParser.h` as well."
-  },
-  {
-    "path": "src/core/ConfigParser.cpp",
-    "line": 18,
-    "body": "**Exception safety**: Ensure this constructor isn't marked `noexcept` since it now throws `std::invalid_argument`."
-  }
-]
+  "comments": [
+    {
+      "path": "src/core/ConfigParser.cpp",
+      "start_line": 17,
+      "line": 17,
+      "body": "**Update header**: Make sure to update `validate() const` in `ConfigParser.h` as well."
+    },
+    {
+      "path": "src/core/ConfigParser.cpp",
+      "start_line": 18,
+      "line": 18,
+      "body": "**Exception safety**: Ensure this constructor isn't marked `noexcept` since it now throws `std::invalid_argument`."
+    }
+  ]
+}
 """
 
 USER_PROMPT = "Review these diffs from the Pull Request:"
@@ -152,13 +166,11 @@ def get_ai_review(diffs, MODEL, API_KEY):
     if response.status_code >= 400:
         print(f"Status Code: {response.status_code}\nAPI Error: {response}")
         response.raise_for_status()
-        raise
     
     try:
         response = response.json()
     except requests.exceptions.JSONDecodeError:
         response.raise_for_status()
-        raise
 
     return response['choices'][0]['message']
  
