@@ -60,7 +60,7 @@ def main():
     response = response['choices'][0]['message']
     
     # TODO: post response as a comment under Pull Request rather than log
-    print(response)
+    print(json.dumps(response, indent=2))
 
 if __name__ == "__main__":
     main()
