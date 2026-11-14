@@ -35,7 +35,7 @@ def main():
             "Content-Type": "application/json",
         },
         data=json.dumps({
-            "model": model,
+            "model": MODEL,
             "messages": [
                 {
                     "role": "system",
