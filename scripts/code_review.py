@@ -3,28 +3,13 @@ import json
 import subprocess
 import requests
 import re
+import time
 
-# Setup Environment variables
 API_KEY = os.environ.get("CODE_REVIEW_KEY")
 MODEL = os.environ.get("CODE_REVIEW_MODEL")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 REPO = os.environ.get("GITHUB_REPOSITORY")
 PR_NUMBER = os.environ.get("PR_NUMBER")
-
-def load_pr_context():
-    event_path = os.environ.get("GITHUB_EVENT_PATH")
-    if not event_path:
-        raise SystemExit("GITHUB_EVENT_PATH not set, are you running inside GitHub Actions?")
-
-    with open(event_path) as f:
-        event = json.load(f)
-
-    pr = event.get("pull_request")
-    if not pr:
-        raise SystemExit("This workflow run was not triggered by a pull_request event")
-
-    return pr["number"], pr["head"]["sha"]
-PR_NUMBER, COMMIT_SHA = load_pr_context()
 
 # Setup constants
 ENABLE_REASONING = False
@@ -139,6 +124,7 @@ def annotate_diff(diff):
     return "\n".join(out)
 
 def get_pull_request_diffs(base_ref):
+    subprocess.run(["git", "fetch", "origin", base_ref], check=True)
     result = subprocess.run(
         ["git", "diff", f"origin/{base_ref}...HEAD"],
         capture_output=True, text=True, check=True,
@@ -186,23 +172,23 @@ def get_ai_review(diffs, MODEL, API_KEY):
 
     return response['choices'][0]['message']
     
-    def get_pr_context():
-        r = requests.get(
-            f"https://api.github.com/repos/{REPO}/pulls/{PR_NUMBER}",
-            headers={
-                "Authorization": f"Bearer {GITHUB_TOKEN}",
-                "Accept": "application/vnd.github+json",
-            },
-            timeout=30,
-        )
-        r.raise_for_status()
-        pr = r.json()
-        return pr["head"]["sha"], pr["base"]["ref"]
+def get_pr_context():
+    r = requests.get(
+        f"https://api.github.com/repos/{REPO}/pulls/{PR_NUMBER}",
+        headers={
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json",
+        },
+        timeout=30,
+    )
+    r.raise_for_status()
+    pr = r.json()
+    return pr["head"]["sha"], pr["base"]["ref"]
 
-def post_line_comment(c):
+def post_line_comment(c, commit_sha):
     payload = {
         "body": c["body"],
-        "commit_id": COMMIT_SHA,
+        "commit_id": commit_sha,
         "path": c["path"],
         "line": c["line"],
         "side": "RIGHT",
@@ -226,9 +212,9 @@ def post_line_comment(c):
     return r.json()
 
 
-def post_all(comments):
+def post_all(comments, commit_sha):
     for c in comments:
-        post_line_comment(c)
+        post_line_comment(c, commit_sha)
         time.sleep(1)  # avoid GitHub's secondary rate limits
 
 def main():
@@ -244,7 +230,9 @@ def main():
     response = get_ai_review(diffs, MODEL, API_KEY)
 
     print(json.dumps(response, indent=2))
-    post_all(response["content"]["comments"])
+    
+    comments = json.loads(response["content"])["comments"]
+    post_all(comments, commit_sha)
 
 if __name__ == "__main__":
     main()
