@@ -19,8 +19,7 @@ MODELS = {
 }
 
 
-def parse_input_arg(args_with_command):
-    args = re.sub(r'^/\w+\s*', '', args_with_command)
+def parse_input_arg(args):
     return dict(pair.split("=", 1) for pair in shlex.split(args))
 
 
