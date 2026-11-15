@@ -11,7 +11,7 @@ permissions:
 
 concurrency:
   group: code-review-${{ github.event.issue.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false 
 
 jobs:
   code-review:
