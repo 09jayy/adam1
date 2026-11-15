@@ -82,7 +82,11 @@ a block ends.
 
 def user_prompt(pr_title, pr_body, diffs, note):
     pr = f"Title: {pr_title}\nDescription: {pr_body}\ndiffs:\n{diffs}"
-    return pr if note is None else pr + f"\n\nAdditionally, the coder has also left this note to consider during your review: {note}"
+    if note:
+        print(f"::debug:: {note}")
+        return pr + f"\n\nAdditionally, the coder has also left this note to consider during your review: {note}"
+    return pr
+
 
 AI_RESPONSE_JSON_SCHEMA = {
     "name": "code_review",
