@@ -3,9 +3,8 @@
 import json
 import os
 
-from dotenv import load_dotenv
-
 from code_review import get_ai_review
+from dotenv import load_dotenv
 
 load_dotenv()
 
