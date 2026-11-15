@@ -44,5 +44,5 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number }} 
           COMMENT_BODY: ${{ github.event.comment.body }}
-        run: python scripts/code_review.py '${{ env.COMMENT_BODY }}'
+        run: python scripts/code_review.py ${{ env.COMMENT_BODY }}
 
