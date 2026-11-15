@@ -299,12 +299,12 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    print(f"args: {args}")
+    print(f"::debug:: args: {args}")
 
     args_dict = parse_input_arg(args.input or DEFAULT_ARGS_STRING)
     args_dict = fallback_to_default_args(args_dict)
 
-    print(f"args_dict: {args_dict}")
+    print(f"::debug:: args_dict: {args_dict}")
 
     print(f"::notice title=Code Review Model::{args_dict.get('model')}")
     main(args_dict)
