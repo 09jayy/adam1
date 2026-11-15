@@ -2,6 +2,7 @@ import json
 import os
 import re
 import time
+from string import Template
 
 import requests
 
@@ -64,7 +65,7 @@ a block ends.
 }
 """
 
-USER_PROMPT = "Review these diffs from the Pull Request:"
+USER_PROMPT = Template("Title: $pr_title\nDescription: $pr_body\ndiffs:\n$diffs")
 
 AI_RESPONSE_JSON_SCHEMA = {
     "name": "code_review",
@@ -140,7 +141,7 @@ def get_pull_request_diffs(base_ref):
     return response.text
 
 
-def get_ai_review(diffs, MODEL, API_KEY):
+def get_ai_review(diffs, pr_title, pr_body, MODEL, API_KEY):
     diffs = annotate_diff(diffs)
     response = requests.post(
         url="https://openrouter.ai/api/v1/chat/completions",
@@ -153,7 +154,12 @@ def get_ai_review(diffs, MODEL, API_KEY):
                 "model": MODEL,
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": f"{USER_PROMPT}\n{diffs}"},
+                    {
+                        "role": "user",
+                        "content": USER_PROMPT.substitute(
+                            pr_title=pr_title, pr_body=pr_body, diffs=diffs
+                        ),
+                    },
                 ],
                 "reasoning": {"enabled": ENABLE_REASONING},
                 "response_format": {
@@ -189,7 +195,13 @@ def get_pr_context():
     )
     r.raise_for_status()
     pr = r.json()
-    return pr["head"]["sha"], pr["base"]["ref"], pr["head"]["repo"]["full_name"]
+    return (
+        pr["head"]["sha"],
+        pr["base"]["ref"],
+        pr["head"]["repo"]["full_name"],
+        pr["title"],
+        pr["body"] if pr["body"] != None or pr["body"] == "" else "",
+    )
 
 
 def post_line_comment(c, commit_sha, repo_name):
@@ -231,13 +243,13 @@ def main():
     if not API_KEY or not MODEL or not GITHUB_TOKEN or not REPO or not PR_NUMBER:
         raise SystemExit("Missing environment variables - failed to set one or more")
 
-    commit_sha, base_ref, repo_name = get_pr_context()
+    commit_sha, base_ref, repo_name, pr_title, pr_body = get_pr_context()
     diffs = get_pull_request_diffs(base_ref)
 
     if diffs is None:
         raise SystemExit("Failed to generate pull request diffs")
 
-    response = get_ai_review(diffs, MODEL, API_KEY)
+    response = get_ai_review(diffs, pr_title, pr_body, MODEL, API_KEY)
 
     print(json.dumps(response, indent=2))
 
