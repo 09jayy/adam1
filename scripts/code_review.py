@@ -297,7 +297,6 @@ if __name__ == "__main__":
         "--note",
         help="note to be appended to the review prompt - adds extra context to the LLM",
         default=DEFAULT_ARGS["note"],
-        type=str,
     )
 
     args, unknown = parser.parse_known_args()
