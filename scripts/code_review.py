@@ -1,7 +1,6 @@
 import json
 import os
 import re
-import subprocess
 import time
 
 import requests
@@ -127,17 +126,18 @@ def annotate_diff(diff):
 
 
 def get_pull_request_diffs(base_ref):
-    try:
-        result = subprocess.run(
-            ["git", "diff", f"origin/{base_ref}...HEAD"],
-            capture_output=True,
-            text=True,
-            check=True,
+    response = requests.get(
+        url=f"https://api.github.com/repos/{REPO}/pulls/{PR_NUMBER}",
+        headers={
+            "Authorization": f"Bearer {GITHUB_TOKEN}",
+            "Accept": "application/vnd.github+json",
+        },
+    )
+    if response.status_code >= 400:
+        raise SystemExit(
+            f"Failed to fetch PR diffs: {response.status_code} - {response.json()}"
         )
-        return result.stdout if result.stdout != "" else None
-    except subprocess.CalledProcessError as e:
-        print(f"Error running git diff: {e}")
-        return None
+    return response.text
 
 
 def get_ai_review(diffs, MODEL, API_KEY):

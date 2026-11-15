@@ -1,25 +1,22 @@
 name: AI Code Review
 
 on:
-  workflow_dispatch:
-    inputs:
-      pr_number:
-        description: "Pull request number to review"
-        required: true
-        type: string
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
   pull-requests: write
+  issues: read
 
 concurrency:
-  group: code-review-${{ inputs.pr_number }}
+  group: code-review-${{ github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
   code-review:
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/main'
+    if: github.ref != 'refs/heads/main' && github.event.issue.pull_request != null && github.event.comment.body == 'review'
     steps:
       - uses: actions/checkout@v7
         with:
@@ -43,7 +40,7 @@ jobs:
           CODE_REVIEW_KEY: ${{ secrets.CODE_REVIEW_KEY }}
           CODE_REVIEW_MODEL: ${{ vars.CODE_REVIEW_MODEL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ inputs.pr_number }}
+          PR_NUMBER: ${{ github.event.issue.number }} 
 
         run: python scripts/code_review.py
 
