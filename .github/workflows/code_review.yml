@@ -41,9 +41,8 @@ jobs:
       - name: AI code review
         env:
           CODE_REVIEW_KEY: ${{ secrets.CODE_REVIEW_KEY }}
-          CODE_REVIEW_MODEL: ${{ vars.CODE_REVIEW_MODEL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUMBER: ${{ github.event.issue.number }} 
-
-        run: python scripts/code_review.py
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: python scripts/code_review.py --input "$COMMENT_BODY"
 
