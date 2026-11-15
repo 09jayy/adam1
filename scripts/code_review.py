@@ -131,8 +131,9 @@ def get_pull_request_diffs(base_ref):
         url=f"https://api.github.com/repos/{REPO}/pulls/{PR_NUMBER}",
         headers={
             "Authorization": f"Bearer {GITHUB_TOKEN}",
-            "Accept": "application/vnd.github+json",
+            "Accept": "application/vnd.github.diff",
         },
+        timeout=30,
     )
     if response.status_code >= 400:
         raise SystemExit(
