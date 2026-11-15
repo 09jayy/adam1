@@ -201,7 +201,7 @@ def get_pr_context():
         pr["base"]["ref"],
         pr["head"]["repo"]["full_name"],
         pr["title"],
-        pr["body"] if pr["body"] != None or pr["body"] == "" else "",
+        pr["body"] or "",
     )
 
 
