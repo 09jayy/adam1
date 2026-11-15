@@ -19,7 +19,8 @@ MODELS = {
 }
 
 
-def parse_input_arg(args):
+def parse_input_arg(args_with_command):
+    args = re.sub(r'^/\w+\s*', '', args_with_command)
     return dict(pair.split("=", 1) for pair in shlex.split(args))
 
 
@@ -302,5 +303,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
      
     args_dict = parse_input_arg(args.input or DEFAULT_ARGS_STRING)
+    args_dict = fallback_to_default_args(args_dict)
 
     main(args_dict)
