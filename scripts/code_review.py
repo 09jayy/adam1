@@ -84,7 +84,7 @@ def user_prompt(pr_title, pr_body, diffs, note):
     pr = f"Title: {pr_title}\nDescription: {pr_body}\ndiffs:\n{diffs}"
     if note:
         print(f"::debug:: {note}")
-        return pr + f"\n\nAdditionally, the coder has also left this note to consider during your review: {note}"
+        return pr + f"\n\nAdditionally, the coder has also left this note for you to include in your review: {note}"
     return pr
 
 
