@@ -16,7 +16,7 @@ concurrency:
 jobs:
   code-review:
     runs-on: ubuntu-latest
-    if: github.ref != 'refs/heads/main' && github.event.issue.pull_request != null && github.event.comment.body == 'review'
+    if: github.ref != 'refs/heads/main' && github.event.issue.pull_request != null && startsWith(github.event.comment.body, '/review')
     steps:
       - uses: actions/checkout@v7
         with:
