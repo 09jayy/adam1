@@ -157,7 +157,7 @@ def get_ai_review(diffs, pr_title, pr_body, MODEL, API_KEY):
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {
                         "role": "user",
-                        "content": USER_PROMPT.substitute(
+                        "content": USER_PROMPT.safe_substitute(
                             pr_title=pr_title, pr_body=pr_body, diffs=diffs
                         ),
                     },
