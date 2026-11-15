@@ -8,6 +8,10 @@ from string import Template
 
 import requests
 
+DEFAULT_ARGS = {
+    "model": "deepseek-flash"
+}
+
 MODELS = {
     "deepseek-flash": "deepseek/deepseek-v4.1-flash",
     "kimi-k3": "moonshotai/kimi-k3",
@@ -17,6 +21,16 @@ MODELS = {
 
 def parse_input_arg(args):
     return dict(pair.split("=", 1) for pair in shlex.split(args))
+
+
+def fallback_to_default_args(args_dict):
+    if args_dict.get("model") not in MODELS:
+        print(
+            f"::warning::model argument: {args_dict.get("model")} - falling back to default model: {DEFAULT_ARGS.get("model")}"
+        )
+        args_dict["model"] = DEFAULT_ARGS["model"]
+
+    return args_dict
 
 
 API_KEY = os.environ.get("CODE_REVIEW_KEY")
@@ -173,7 +187,7 @@ def get_ai_review(diffs, pr_title, pr_body, args_dict, API_KEY):
                             pr_title=pr_title, pr_body=pr_body, diffs=diffs
                         ),
                     },
-                ],
+                ], 
                 "reasoning": {"enabled": ENABLE_REASONING},
                 "response_format": {
                     "type": "json_schema",
@@ -275,7 +289,7 @@ def main(args_dict):
 
 
 if __name__ == "__main__":
-    DEFAULT_ARGS = "model=deepseek-flash"
+    DEFAULT_ARGS_STRING = f"model={DEFAULT_ARGS["model"]}"
 
     parser = argparse.ArgumentParser(description="Run AI code review")
 
@@ -287,8 +301,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
      
-    args_dict = parse_input_arg(args.input or DEFAULT_ARGS)
-
-    print(args_dict)
+    args_dict = parse_input_arg(args.input or DEFAULT_ARGS_STRING)
 
     main(args_dict)
