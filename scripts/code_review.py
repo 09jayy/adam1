@@ -1,13 +1,39 @@
+import argparse
 import json
 import os
 import re
+import shlex
 import time
 from string import Template
 
 import requests
 
+DEFAULT_ARGS = {
+    "model": "deepseek-flash"
+}
+
+MODELS = {
+    "deepseek-flash": "deepseek/deepseek-v4.1-flash",
+    "kimi-k3": "moonshotai/kimi-k3",
+    "qwen3.8-27B": "qwen/qwen3.8-27b",
+}
+
+
+def parse_input_arg(args):
+    return dict(pair.split("=", 1) for pair in shlex.split(args))
+
+
+def fallback_to_default_args(args_dict):
+    if args_dict.get("model") not in MODELS:
+        print(
+            f"::warning::model argument: {args_dict.get("model")} - falling back to default model: {DEFAULT_ARGS.get("model")}"
+        )
+        args_dict["model"] = DEFAULT_ARGS["model"]
+
+    return args_dict
+
+
 API_KEY = os.environ.get("CODE_REVIEW_KEY")
-MODEL = os.environ.get("CODE_REVIEW_MODEL")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 REPO = os.environ.get("GITHUB_REPOSITORY")
 PR_NUMBER = os.environ.get("PR_NUMBER")
@@ -142,7 +168,7 @@ def get_pull_request_diffs(base_ref):
     return response.text
 
 
-def get_ai_review(diffs, pr_title, pr_body, MODEL, API_KEY):
+def get_ai_review(diffs, pr_title, pr_body, args_dict, API_KEY):
     diffs = annotate_diff(diffs)
     response = requests.post(
         url="https://openrouter.ai/api/v1/chat/completions",
@@ -152,7 +178,7 @@ def get_ai_review(diffs, pr_title, pr_body, MODEL, API_KEY):
         },
         data=json.dumps(
             {
-                "model": MODEL,
+                "model": MODELS.get(args_dict["model"]),
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {
@@ -161,7 +187,7 @@ def get_ai_review(diffs, pr_title, pr_body, MODEL, API_KEY):
                             pr_title=pr_title, pr_body=pr_body, diffs=diffs
                         ),
                     },
-                ],
+                ], 
                 "reasoning": {"enabled": ENABLE_REASONING},
                 "response_format": {
                     "type": "json_schema",
@@ -240,8 +266,8 @@ def post_all(comments, commit_sha, repo_name):
         time.sleep(1)  # avoid GitHub's secondary rate limits
 
 
-def main():
-    if not API_KEY or not MODEL or not GITHUB_TOKEN or not REPO or not PR_NUMBER:
+def main(args_dict):
+    if not API_KEY or not GITHUB_TOKEN or not REPO or not PR_NUMBER:
         raise SystemExit("Missing environment variables - failed to set one or more")
 
     commit_sha, base_ref, repo_name, pr_title, pr_body = get_pr_context()
@@ -250,7 +276,7 @@ def main():
     if diffs is None:
         raise SystemExit("Failed to generate pull request diffs")
 
-    response = get_ai_review(diffs, pr_title, pr_body, MODEL, API_KEY)
+    response = get_ai_review(diffs, pr_title, pr_body, args_dict, API_KEY)
 
     print(json.dumps(response, indent=2))
 
@@ -263,4 +289,24 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    DEFAULT_ARGS_STRING = f"model={DEFAULT_ARGS["model"]}"
+
+    parser = argparse.ArgumentParser(description="Run AI code review")
+
+    parser.add_argument(
+        "--input",
+        required=False,
+        help="run time arguments of command as a string in format of `parameter=argument`",
+    )
+
+    args = parser.parse_args()
+
+    print(f"args: {args}")
+     
+    args_dict = parse_input_arg(args.input or DEFAULT_ARGS_STRING)
+    args_dict = fallback_to_default_args(args_dict)
+
+    print(f"args_dict: {args_dict}")
+
+    print(f"::notice title=Code Review Model::{args_dict.get("model")}")
+    main(args_dict)
