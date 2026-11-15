@@ -173,7 +173,7 @@ def get_ai_review(diffs, pr_title, pr_body, args, API_KEY):
         },
         data=json.dumps(
             {
-                "model": args.model, 
+                "model": MODELS.get(args.model), 
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {
