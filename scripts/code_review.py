@@ -4,6 +4,7 @@ import os
 import re
 import shlex
 import time
+import sys
 from string import Template
 
 import requests
@@ -289,7 +290,6 @@ def main(args_dict):
 
 
 if __name__ == "__main__":
-    DEFAULT_ARGS_STRING = f"model={DEFAULT_ARGS['model']}"
 
     parser = argparse.ArgumentParser(description="Run AI code review")
 
@@ -307,8 +307,9 @@ if __name__ == "__main__":
         type=str
     )
 
-    args = parser.parse_args()
+    args, unknown = parser.parse_known_args()
 
+    print(f"::debug:: unknown args: {unknown}")
     print(f"::debug:: args: {args}")
 
     args_dict = fallback_to_default_args(args_dict)
