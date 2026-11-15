@@ -303,7 +303,8 @@ if __name__ == "__main__":
         "-n",
         "--note",
         help="note to be appended to the review prompt - adds extra context to the LLM",
-        default=DEFAULT_ARGS["note"]
+        default=DEFAULT_ARGS["note"],
+        type=str
     )
 
     args = parser.parse_args()
