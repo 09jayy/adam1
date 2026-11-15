@@ -104,6 +104,7 @@ AI_RESPONSE_JSON_SCHEMA = {
     },
 }
 
+
 def annotate_diff(diff):
     out = []
     new_line = 0
@@ -123,18 +124,20 @@ def annotate_diff(diff):
             out.append(raw)
     return "\n".join(out)
 
+
 def get_pull_request_diffs(base_ref):
     try:
         result = subprocess.run(
-            ["git","diff",f"origin/{base_ref}...HEAD"],
+            ["git", "diff", f"origin/{base_ref}...HEAD"],
             capture_output=True,
             text=True,
-            check=True
+            check=True,
         )
         return result.stdout if result.stdout != "" else None
     except subprocess.CalledProcessError as e:
         print(f"Error running git diff: {e}")
         return None
+
 
 def get_ai_review(diffs, MODEL, API_KEY):
     diffs = annotate_diff(diffs)
@@ -144,39 +147,36 @@ def get_ai_review(diffs, MODEL, API_KEY):
             "Authorization": f"Bearer {API_KEY}",
             "Content-Type": "application/json",
         },
-        data=json.dumps({
-            "model": MODEL,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": SYSTEM_PROMPT
+        data=json.dumps(
+            {
+                "model": MODEL,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": f"{USER_PROMPT}\n{diffs}"},
+                ],
+                "reasoning": {"enabled": ENABLE_REASONING},
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": AI_RESPONSE_JSON_SCHEMA,
                 },
-                {
-                    "role": "user",
-                    "content": f"{USER_PROMPT}\n{diffs}"
-                }
-            ],
-            "reasoning": {"enabled": ENABLE_REASONING},
-            "response_format": {
-                "type": "json_schema",
-                "json_schema": AI_RESPONSE_JSON_SCHEMA,
-            },
-            "provider": { "require_parameters": True }
-        }),
-        timeout=60
+                "provider": {"require_parameters": True},
+            }
+        ),
+        timeout=60,
     )
-    
+
     if response.status_code >= 400:
         print(f"Status Code: {response.status_code}\nAPI Error: {response}")
         response.raise_for_status()
-    
+
     try:
         response = response.json()
     except requests.exceptions.JSONDecodeError:
         response.raise_for_status()
 
-    return response['choices'][0]['message']
-    
+    return response["choices"][0]["message"]
+
+
 def get_pr_context():
     r = requests.get(
         f"https://api.github.com/repos/{REPO}/pulls/{PR_NUMBER}",
@@ -189,6 +189,7 @@ def get_pr_context():
     r.raise_for_status()
     pr = r.json()
     return pr["head"]["sha"], pr["base"]["ref"], pr["head"]["repo"]["full_name"]
+
 
 def post_line_comment(c, commit_sha, repo_name):
     payload = {
@@ -213,7 +214,9 @@ def post_line_comment(c, commit_sha, repo_name):
     )
     if r.status_code >= 400:
         try:
-            print(f"::warning::Could not post comment on {file}:{line} - {r.json().get("message")}")
+            print(
+                f"::warning::Could not post comment on {file}:{line} - {r.json().get('message')}"
+            )
         except:
             print(f"::warning::Could not post comment on {file}:{line}")
         return None
@@ -225,11 +228,12 @@ def post_all(comments, commit_sha, repo_name):
         post_line_comment(c, commit_sha, repo_name)
         time.sleep(1)  # avoid GitHub's secondary rate limits
 
+
 def main():
     if not API_KEY or not MODEL or not GITHUB_TOKEN or not REPO or not PR_NUMBER:
         raise SystemExit("Missing environment variables - failed to set one or more")
 
-    commit_sha, base_ref,repo_name = get_pr_context()
+    commit_sha, base_ref, repo_name = get_pr_context()
     diffs = get_pull_request_diffs(base_ref)
 
     if diffs is None:
@@ -238,13 +242,14 @@ def main():
     response = get_ai_review(diffs, MODEL, API_KEY)
 
     print(json.dumps(response, indent=2))
-    
+
     try:
-        comments = json.loads(response["content"]).get("comments",[])
+        comments = json.loads(response["content"]).get("comments", [])
     except (json.JSONDecodeError, KeyError, TypeError) as e:
         print(f"Bad model output: {e}")
 
-    post_all(comments, commit_sha,repo_name)
+    post_all(comments, commit_sha, repo_name)
+
 
 if __name__ == "__main__":
     main()

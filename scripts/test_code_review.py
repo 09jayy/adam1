@@ -62,6 +62,8 @@ index 0000000..3c9d2f7
 +
 +}
 """
+
+
 def parse_comments(content: str):
     try:
         return json.loads(content)["comments"]
@@ -69,22 +71,25 @@ def parse_comments(content: str):
         print(f"Bad model output: {e}\n{content}")
         return None
 
+
 def test_get_ai_review():
     # 1. Fetch raw response from the AI wrapper
     response = get_ai_review(fixture, MODEL, API_KEY)
-    
+
     # 2. Guard against missing or malformed response shapes
     content = response.get("content") if isinstance(response, dict) else None
     if not content:
         raise AssertionError(f"Expected a message dict with 'content', got: {response}")
-    
+
     # 3. Parse and validate the comments structure
     comments = parse_comments(content)
     print(comments)
-    assert comments is not None, "parse_comments failed; check stdout for raw model output."
-    assert isinstance(comments, list), f"Expected list of comments, got {type(comments)}"
-    
+    assert comments is not None, (
+        "parse_comments failed; check stdout for raw model output."
+    )
+    assert isinstance(comments, list), (
+        f"Expected list of comments, got {type(comments)}"
+    )
+
     print(f"Successfully parsed {len(comments)} comments.")
     assert len(comments) > 0
-
-
