@@ -8,7 +8,10 @@ from string import Template
 
 import requests
 
-DEFAULT_ARGS = {"model": "deepseek-flash"}
+DEFAULT_ARGS = {
+    "model": "deepseek-flash",
+    "note": None
+}
 
 MODELS = {
     "deepseek-flash": "deepseek/deepseek-v4.1-flash",
@@ -90,7 +93,9 @@ a block ends.
 }
 """
 
-USER_PROMPT = Template("Title: $pr_title\nDescription: $pr_body\ndiffs:\n$diffs")
+def user_prompt(pr_title, pr_body, diffs, note):
+    pr = f"Title: {pr_title}\nDescription: {pr_body}\ndiffs:\n{diffs}"
+    return pr if note is None else pr + f"Additionally, the coder has also left this note to consider during your review: {note}"
 
 AI_RESPONSE_JSON_SCHEMA = {
     "name": "code_review",
@@ -183,7 +188,7 @@ def get_ai_review(diffs, pr_title, pr_body, args_dict, API_KEY):
                     {
                         "role": "user",
                         "content": USER_PROMPT.safe_substitute(
-                            pr_title=pr_title, pr_body=pr_body, diffs=diffs
+                            pr_title=pr_title, pr_body=pr_body, diffs=diffs, note=args_dict.get("note")
                         ),
                     },
                 ],
