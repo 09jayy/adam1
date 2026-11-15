@@ -1,9 +1,10 @@
-import os
 import json
-import subprocess
-import requests
+import os
 import re
+import subprocess
 import time
+
+import requests
 
 API_KEY = os.environ.get("CODE_REVIEW_KEY")
 MODEL = os.environ.get("CODE_REVIEW_MODEL")
@@ -117,7 +118,7 @@ def annotate_diff(diff):
             out.append(raw)
         elif raw.startswith("-"):
             out.append(f"     {raw}")  # removed line, no new-file number
-        elif raw.startswith("+") or raw.startswith(" "):
+        elif raw.startswith(("+", " ")):
             out.append(f"{new_line:>4} {raw}")
             new_line += 1
         else:
@@ -213,12 +214,9 @@ def post_line_comment(c, commit_sha, repo_name):
         timeout=30,
     )
     if r.status_code >= 400:
-        try:
-            print(
-                f"::warning::Could not post comment - {r.json().get('message')}"
-            )
-        except:
-            print(f"::warning::Could not post comment")
+        print(
+            f"::warning::Could not post comment - {r.json().get('message') if r.json().get('message') else r.json()}"
+        )
         return None
     return r.json()
 

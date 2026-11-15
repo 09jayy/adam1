@@ -1,8 +1,8 @@
 # testing llm response
 
-import os
-import requests
 import json
+import os
+
 from dotenv import load_dotenv
 
 from code_review import get_ai_review
