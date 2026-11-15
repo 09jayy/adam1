@@ -13,16 +13,12 @@ DEFAULT_ARGS = {
     "note": None
 }
 
+
 MODELS = {
     "deepseek-flash": "deepseek/deepseek-v4.1-flash",
     "kimi-k3": "moonshotai/kimi-k3",
     "qwen3.8-27B": "qwen/qwen3.8-27b",
 }
-
-
-def parse_input_arg(args_with_command):
-    args = re.sub(r"^/\w+\s*", "", args_with_command)  
-    return dict(pair.split("=", 1) for pair in shlex.split(args))
 
 
 def fallback_to_default_args(args_dict):
@@ -187,8 +183,8 @@ def get_ai_review(diffs, pr_title, pr_body, args_dict, API_KEY):
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {
                         "role": "user",
-                        "content": USER_PROMPT.safe_substitute(
-                            pr_title=pr_title, pr_body=pr_body, diffs=diffs, note=args_dict.get("note")
+                        "content": user_prompt(
+                            pr_title=pr_title, pr_body=pr_body, diffs=diffs, note=args_dict["note"]
                         ),
                     },
                 ],
@@ -298,16 +294,22 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run AI code review")
 
     parser.add_argument(
-        "--input",
-        required=False,
-        help="run time arguments of command as a string in format of `parameter=argument`",
+        "-m",
+        "--model",
+        help="model that will run the ai code review",
+        default=DEFAULT_ARGS["model"]
+    )
+    parser.add_argument(
+        "-n",
+        "--note",
+        help="note to be appended to the review prompt - adds extra context to the LLM",
+        default=DEFAULT_ARGS["note"]
     )
 
     args = parser.parse_args()
 
     print(f"::debug:: args: {args}")
 
-    args_dict = parse_input_arg(args.input or DEFAULT_ARGS_STRING)
     args_dict = fallback_to_default_args(args_dict)
 
     print(f"::debug:: args_dict: {args_dict}")
