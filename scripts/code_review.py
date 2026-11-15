@@ -2,17 +2,11 @@ import argparse
 import json
 import os
 import re
-import shlex
 import time
-import sys
-from string import Template
 
 import requests
 
-DEFAULT_ARGS = {
-    "model": "deepseek-flash",
-    "note": None
-}
+DEFAULT_ARGS = {"model": "deepseek-flash", "note": None}
 
 
 MODELS = {
@@ -80,10 +74,14 @@ a block ends.
 }
 """
 
+
 def user_prompt(pr_title, pr_body, diffs, note):
     pr = f"Title: {pr_title}\nDescription: {pr_body}\ndiffs:\n{diffs}"
     if note:
-        return pr + f"\n\nAdditionally, the coder has also left this note for you to include in your review: {note}"
+        return (
+            pr
+            + f"\n\nAdditionally, the coder has also left this note for you to include in your review: {note}"
+        )
     return pr
 
 
@@ -172,13 +170,16 @@ def get_ai_review(diffs, pr_title, pr_body, args, API_KEY):
         },
         data=json.dumps(
             {
-                "model": MODELS.get(args.model), 
+                "model": MODELS.get(args.model),
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {
                         "role": "user",
                         "content": user_prompt(
-                            pr_title=pr_title, pr_body=pr_body, diffs=diffs, note=args.note
+                            pr_title=pr_title,
+                            pr_body=pr_body,
+                            diffs=diffs,
+                            note=args.note,
                         ),
                     },
                 ],
@@ -283,21 +284,20 @@ def main(args):
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="Run AI code review")
 
     parser.add_argument(
         "-m",
         "--model",
         help="model that will run the ai code review",
-        default=DEFAULT_ARGS["model"]
+        default=DEFAULT_ARGS["model"],
     )
     parser.add_argument(
         "-n",
         "--note",
         help="note to be appended to the review prompt - adds extra context to the LLM",
         default=DEFAULT_ARGS["note"],
-        type=str
+        type=str,
     )
 
     args, unknown = parser.parse_known_args()
