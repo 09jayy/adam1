@@ -22,16 +22,6 @@ MODELS = {
 }
 
 
-def fallback_to_default_args(args_dict):
-    if args_dict.get("model") not in MODELS:
-        print(
-            f"::warning::model argument: {args_dict.get('model')} - falling back to default model: {DEFAULT_ARGS.get('model')}"
-        )
-        args_dict["model"] = DEFAULT_ARGS["model"]
-
-    return args_dict
-
-
 API_KEY = os.environ.get("CODE_REVIEW_KEY")
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 REPO = os.environ.get("GITHUB_REPOSITORY")
@@ -169,7 +159,7 @@ def get_pull_request_diffs(base_ref):
     return response.text
 
 
-def get_ai_review(diffs, pr_title, pr_body, args_dict, API_KEY):
+def get_ai_review(diffs, pr_title, pr_body, args, API_KEY):
     diffs = annotate_diff(diffs)
     response = requests.post(
         url="https://openrouter.ai/api/v1/chat/completions",
@@ -179,13 +169,13 @@ def get_ai_review(diffs, pr_title, pr_body, args_dict, API_KEY):
         },
         data=json.dumps(
             {
-                "model": MODELS.get(args_dict["model"]),
+                "model": args.model 
                 "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {
                         "role": "user",
                         "content": user_prompt(
-                            pr_title=pr_title, pr_body=pr_body, diffs=diffs, note=args_dict["note"]
+                            pr_title=pr_title, pr_body=pr_body, diffs=diffs, note=args.note
                         ),
                     },
                 ],
@@ -267,7 +257,7 @@ def post_all(comments, commit_sha, repo_name):
         time.sleep(1)  # avoid GitHub's secondary rate limits
 
 
-def main(args_dict):
+def main(args):
     if not API_KEY or not GITHUB_TOKEN or not REPO or not PR_NUMBER:
         raise SystemExit("Missing environment variables - failed to set one or more")
 
@@ -277,7 +267,7 @@ def main(args_dict):
     if diffs is None:
         raise SystemExit("Failed to generate pull request diffs")
 
-    response = get_ai_review(diffs, pr_title, pr_body, args_dict, API_KEY)
+    response = get_ai_review(diffs, pr_title, pr_body, args, API_KEY)
 
     print(json.dumps(response, indent=2))
 
@@ -312,9 +302,5 @@ if __name__ == "__main__":
     print(f"::debug:: unknown args: {unknown}")
     print(f"::debug:: args: {args}")
 
-    args_dict = fallback_to_default_args(args_dict)
-
-    print(f"::debug:: args_dict: {args_dict}")
-
-    print(f"::notice title=Code Review Model::{args_dict.get('model')}")
-    main(args_dict)
+    print(f"::notice title=Code Review Model::{args.model}")
+    main(args)
