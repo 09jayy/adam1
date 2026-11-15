@@ -124,12 +124,17 @@ def annotate_diff(diff):
     return "\n".join(out)
 
 def get_pull_request_diffs(base_ref):
-    subprocess.run(["git", "fetch", "origin", base_ref], check=True)
-    result = subprocess.run(
-        ["git", "diff", f"origin/{base_ref}...HEAD"],
-        capture_output=True, text=True, check=True,
-    )
-    return result.stdout
+    try:
+        result = subprocess.run(
+            ["git","diff",f"origin/{base_ref}...HEAD"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return result.stdout if result.stdout != "" else None
+    except subprocess.CalledProcessError as e:
+        print(f"Error running git diff: {e}")
+        return None
 
 def get_ai_review(diffs, MODEL, API_KEY):
     diffs = annotate_diff(diffs)
@@ -183,9 +188,9 @@ def get_pr_context():
     )
     r.raise_for_status()
     pr = r.json()
-    return pr["head"]["sha"], pr["base"]["ref"]
+    return pr["head"]["sha"], pr["base"]["ref"], pr["head"]["repo"]["full_name"]
 
-def post_line_comment(c, commit_sha):
+def post_line_comment(c, commit_sha, repo_name):
     payload = {
         "body": c["body"],
         "commit_id": commit_sha,
@@ -198,7 +203,7 @@ def post_line_comment(c, commit_sha):
         payload["start_side"] = "RIGHT"
 
     r = requests.post(
-        f"https://api.github.com/repos/{REPO}/pulls/{PR_NUMBER}/comments",
+        f"https://api.github.com/repos/{repo_name}/pulls/{PR_NUMBER}/comments",
         headers={
             "Authorization": f"Bearer {GITHUB_TOKEN}",
             "Accept": "application/vnd.github+json",
@@ -207,21 +212,24 @@ def post_line_comment(c, commit_sha):
         timeout=30,
     )
     if r.status_code >= 400:
-        print(f"Failed {c['path']}:{c['line']}: {r.status_code} {r.text}")
+        try:
+            print(f"::warning::Could not post comment on {file}:{line} - {r.json().get("message")}")
+        except:
+            print(f"::warning::Could not post comment on {file}:{line}")
         return None
     return r.json()
 
 
-def post_all(comments, commit_sha):
+def post_all(comments, commit_sha, repo_name):
     for c in comments:
-        post_line_comment(c, commit_sha)
+        post_line_comment(c, commit_sha, repo_name)
         time.sleep(1)  # avoid GitHub's secondary rate limits
 
 def main():
-    if not API_KEY or not MODEL:
-        raise SystemExit("CODE_REVIEW_KEY and CODE_REVIEW_MODEL must be set in environment variables")
+    if not API_KEY or not MODEL or not GITHUB_TOKEN or not REPO or not PR_NUMBER:
+        raise SystemExit("Missing environment variables - failed to set one or more")
 
-    commit_sha, base_ref = get_pr_context()
+    commit_sha, base_ref,repo_name = get_pr_context()
     diffs = get_pull_request_diffs(base_ref)
 
     if diffs is None:
@@ -231,8 +239,12 @@ def main():
 
     print(json.dumps(response, indent=2))
     
-    comments = json.loads(response["content"])["comments"]
-    post_all(comments, commit_sha)
+    try:
+        comments = json.loads(response["content"]).get("comments",[])
+    except (json.JSONDecodeError, KeyError, TypeError) as e:
+        print(f"Bad model output: {e}")
+
+    post_all(comments, commit_sha,repo_name)
 
 if __name__ == "__main__":
     main()
