@@ -215,10 +215,10 @@ def post_line_comment(c, commit_sha, repo_name):
     if r.status_code >= 400:
         try:
             print(
-                f"::warning::Could not post comment on {file}:{line} - {r.json().get('message')}"
+                f"::warning::Could not post comment - {r.json().get('message')}"
             )
         except:
-            print(f"::warning::Could not post comment on {file}:{line}")
+            print(f"::warning::Could not post comment")
         return None
     return r.json()
 
