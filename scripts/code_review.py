@@ -22,7 +22,7 @@ REPO = os.environ.get("GITHUB_REPOSITORY")
 PR_NUMBER = os.environ.get("PR_NUMBER")
 
 # Setup constants
-ENABLE_REASONING = False
+ENABLE_REASONING = True
 SYSTEM_PROMPT = """
 You are a senior software engineer reviewing code. Your priorities are readability, maintainability and following
 industry standard best practices where possible. The code is deployed to a small home-lab server, so keep this
